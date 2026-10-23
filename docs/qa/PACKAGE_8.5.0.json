@@ -1,0 +1,33 @@
+{
+  "version": "8.5.0",
+  "package": "ZERO-ONE-8.5.0-win-x64.appx",
+  "bytes": 217078915,
+  "sha256": "c433363dec9d71db49c9da45a0df2e3940d046b71d01fe53cecdda211593f2f9",
+  "entries": 211,
+  "zipIntegrity": "PASS",
+  "identity": {
+    "Name": "talktoai.ZEROONEDesktop",
+    "ProcessorArchitecture": "x64",
+    "Publisher": "CN=9B704446-6F62-4D52-954E-775436315422",
+    "Version": "8.5.0.0"
+  },
+  "capabilities": [
+    {
+      "Name": "runFullTrust"
+    }
+  ],
+  "targets": [
+    {
+      "Name": "Windows.Desktop",
+      "MinVersion": "10.0.17763.0",
+      "MaxVersionTested": "10.0.26200.0"
+    }
+  ],
+  "containsSignature": false,
+  "storeEdition": {
+    "distribution": "microsoft-store",
+    "schema": 1
+  },
+  "archivedAsarMatchesStaged": true,
+  "asarSha256": "921f3aa0e8c86bd0933e42d438e290296a947a851f526818bff5592ecf3b8576"
+}

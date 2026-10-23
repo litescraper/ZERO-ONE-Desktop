@@ -26,3 +26,11 @@ The local package is built and its unpacked production app passed smoke testing.
 ## Delivery boundary
 
 This receipt establishes local source validation and Windows packaging. It does not establish a public 8.5 installer release, Microsoft Store upload/submission, certification or installed update. Existing website snapshot validation reports published 7.9.2; that snapshot is historical and is not the current-release authority. Current public download links are documented separately in README.
+
+## Store upload candidate
+
+The matching unsigned Store AppX was built after the verified source checks. Filename `ZERO-ONE-8.5.0-win-x64.appx`, 217,078,915 bytes, SHA-256 `c433363dec9d71db49c9da45a0df2e3940d046b71d01fe53cecdda211593f2f9`. Identity `talktoai.ZEROONEDesktop`, publisher `CN=9B704446-6F62-4D52-954E-775436315422`, version `8.5.0.0`, x64, Windows.Desktop minimum `10.0.17763.0`. Capability is runFullTrust only. All 211 ZIP entries passed integrity; the Microsoft Store distribution marker is present and archived ASAR matches tested Store staging.
+
+The Store staging app passed the same native smoke including encrypted free-profile IPC and Store distribution behavior. WACK 10.0.28000.2270 completed 24 tests with overall PASS and PARTIAL_RUN FALSE for the exact package. The optional Blocked executables test failed on static process-launch imports and executable-name references across Electron, Python/ZSEC and the llama runtime; this caveat is retained in reviewer notes. Required checks passed. WACK report SHA-256: `56c3a07f9a50c0ff7977dea40cdc8c9b2f54dcff1d1a856def9389d2178acab4`.
+
+[Exact reviewer notes](../../store/REVIEWER_NOTES_8.5.0.md) describe local/account-free review, optional provider setup and the static-test caveat. These package/WACK receipts do not establish Store upload, submission, certification, public availability or installed acceptance.
