@@ -25,7 +25,7 @@ The local package is built and its unpacked production app passed smoke testing.
 
 ## Delivery boundary
 
-This receipt establishes local source validation and Windows packaging. It does not establish a public 8.5 installer release, Microsoft Store upload/submission, certification or installed update. Existing website snapshot validation reports published 7.9.2; that snapshot is historical and is not the current-release authority. Current public download links are documented separately in README.
+Local source validation and Windows packaging are established above. On 23 October 2026 Partner Center accepted the matching 8.5.0.0 AppX as Submission 8, ID `1152921505702214781`. Its final overview shows **Update in certification**, with pre-processing in progress. Automatic publication after approval remains selected; previous Submission 7 remains live. No public 8.5 GitHub installer release, certification, new-version public delivery or installed acceptance is established. [Store submission receipt](STORE_SUBMISSION_8.5.0.json). Existing static website snapshot validation reports published 7.9.2; that snapshot is historical and is not the current-release authority.
 
 ## Store upload candidate
 
@@ -33,4 +33,4 @@ The matching unsigned Store AppX was built after the verified source checks. Fil
 
 The Store staging app passed the same native smoke including encrypted free-profile IPC and Store distribution behavior. WACK 10.0.28000.2270 completed 24 tests with overall PASS and PARTIAL_RUN FALSE for the exact package. The optional Blocked executables test failed on static process-launch imports and executable-name references across Electron, Python/ZSEC and the llama runtime; this caveat is retained in reviewer notes. Required checks passed. WACK report SHA-256: `56c3a07f9a50c0ff7977dea40cdc8c9b2f54dcff1d1a856def9389d2178acab4`.
 
-[Exact reviewer notes](../../store/REVIEWER_NOTES_8.5.0.md) describe local/account-free review, optional provider setup and the static-test caveat. These package/WACK receipts do not establish Store upload, submission, certification, public availability or installed acceptance.
+[Exact reviewer notes](../../store/REVIEWER_NOTES_8.5.0.md) describe local/account-free review, optional provider setup and the static-test caveat. Partner Center validated the matching package before the superseded 7.9.3 and 8.4 packages were removed from the new draft. The English (United Kingdom) description, provider feature and What's New field were updated and saved, together with the 8.5 reviewer instructions. The separate Store receipt establishes submission; certification, new-version public availability and installed acceptance remain pending or unverified. Partner Center screenshots remain local and are not published with this source receipt.

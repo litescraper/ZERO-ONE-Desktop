@@ -2,7 +2,7 @@
 
 Working-tree product version: `8.5.0`.
 
-The 8.5 source update adds automatic free OpenRouter routing and optional OpenRouter, Meta Model API, DeepSeek and Mistral profiles. See [8.5 source notes](RELEASE_NOTES_8.5.0.md) and [provider setup/cost controls](../docs/API-PROVIDERS.md). These source documents do not establish an 8.5 Store submission, certification, public installer release or installed update. Release history below is preserved evidence for earlier versions.
+The 8.5 source update adds automatic free OpenRouter routing and optional OpenRouter, Meta Model API, DeepSeek and Mistral profiles. On 23 October 2026 the matching 8.5.0.0 AppX was accepted as Submission 8; Partner Center shows **Update in certification**, at pre-processing, with automatic publication after approval preserved. Previous Submission 7 remains live. Certification, new-version public delivery, a public GitHub 8.5 installer release and installed acceptance remain unverified. See the [Store receipt](../docs/qa/STORE_SUBMISSION_8.5.0.json), [8.5 source notes](RELEASE_NOTES_8.5.0.md) and [provider setup/cost controls](../docs/API-PROVIDERS.md). Release history below is preserved evidence for earlier versions.
 
 **8.3 source candidate:** prepared listing and reviewer material adds bundled CPU AI setup, separately downloaded verified weights, model terms/RAM/progress/cancellation, encrypted named research projects and unified Vault routing. No 8.3 package publication, upload, certification or installed state is established by these documents. Use [8.3 release notes](RELEASE_NOTES_8.3.0.md), [8.3 reviewer notes](REVIEWER_NOTES_8.3.0.md) and [listing copy](LISTING_COPY.md). Preserve the 8.2 receipts below as historical evidence.
 
