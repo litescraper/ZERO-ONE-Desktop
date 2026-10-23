@@ -1,5 +1,11 @@
 # ZERO ONE Store readiness
 
+## ZERO ONE 8.5.0 release gate
+
+23 October 2026: source update for automatic free OpenRouter routing and optional OpenRouter, Meta, DeepSeek and Mistral profiles. The [8.5 source notes](../store/RELEASE_NOTES_8.5.0.md) and [provider/cost controls](API-PROVIDERS.md) describe this scope. No 8.5 Store submission, certification, public installer release or installed-version check is established. Match the public privacy policy to this source before any Store submission.
+
+Required checks include full tests and build, pinned runtime/ZSEC verification, free-only rejection and zero-price request tests, encrypted profile reopening, and native packaged acceptance. Existing release evidence below is historical.
+
 ## ZERO ONE 8.4.0 release gate
 
 3 October: Submission 7 accepted as **Update in certification**, automatic publication after approval. [Store receipt](qa/STORE_SUBMISSION_8.4.0.json).

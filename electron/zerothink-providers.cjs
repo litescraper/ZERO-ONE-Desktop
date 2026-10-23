@@ -4,6 +4,11 @@
 // of the application publisher's websites and of model-generated settings.
 const { TextDecoder } = require("node:util");
 const PROVIDERS = Object.freeze([
+  { id: "openrouter-free", label: "Automatic free AI · OpenRouter", kind: "chat", endpoint: "https://openrouter.ai/api/v1/chat/completions", defaultModel: "openrouter/free", requiresKey: true, freeOnly: true, keyUrl: "https://openrouter.ai/settings/keys", help: "Automatically selects an available free model. Free-only requests enforce zero prompt, completion and request prices; quota or availability failures stop here. Your own OpenRouter key is required. Prompts go to OpenRouter and its selected host." },
+  { id: "openrouter", label: "OpenRouter · choose any model", kind: "chat", endpoint: "https://openrouter.ai/api/v1/chat/completions", defaultModel: "openrouter/free", requiresKey: true, keyUrl: "https://openrouter.ai/settings/keys", help: "Choose a model ID from OpenRouter. Models without a free variant may spend your account credits. Choose Automatic free AI for enforced free-only routing." },
+  { id: "meta", label: "Meta Model API", kind: "chat", endpoint: "https://api.meta.ai/v1/chat/completions", defaultModel: "muse-spark-1.3", requiresKey: true, keyUrl: "https://dev.meta.ai/", help: "Uses Meta's current Model API. Access, model availability and charges depend on your Meta account. Llama models are also available through Groq, OpenRouter or your own server." },
+  { id: "deepseek", label: "DeepSeek", kind: "chat", endpoint: "https://api.deepseek.com/chat/completions", defaultModel: "deepseek-flash", requiresKey: true, keyUrl: "https://platform.deepseek.com/", help: "Uses your DeepSeek account and its billing. This provider is never selected as a fallback from free-only routing." },
+  { id: "mistral", label: "Mistral AI", kind: "chat", endpoint: "https://api.mistral.ai/v1/chat/completions", defaultModel: "mistral-small-latest", requiresKey: true, keyUrl: "https://console.mistral.ai/", help: "Use a model available to your Mistral account. Account plans and quotas determine access and costs; free-only routing never switches here." },
   { id: "groq", label: "Groq", kind: "chat", endpoint: "https://api.groq.com/openai/v1/chat/completions", defaultModel: "llama-3.3-70b-versatile", requiresKey: true },
   { id: "openai", label: "OpenAI", kind: "chat", endpoint: "https://api.openai.com/v1/chat/completions", defaultModel: "gpt-4.1-mini", requiresKey: true },
   { id: "gemini", label: "Google Gemini", kind: "chat", endpoint: "https://generativelanguage.googleapis.com/v1beta", defaultModel: "gemini-2.5-flash", requiresKey: true },
@@ -47,6 +52,7 @@ function normalizeProfile(input) {
   const provider = definition(input.provider), model = provider.kind === "chat" ? text(input.model || provider.defaultModel, 192, "Model") : "";
   if (model && !/^[A-Za-z0-9][A-Za-z0-9._:/-]{0,191}$/.test(model)) throw invalid("The model identifier is invalid.");
   if (provider.id === "gemini" && !/^(?:models\/)?[A-Za-z0-9][A-Za-z0-9._-]{0,180}$/.test(model)) throw invalid("Enter a Gemini model identifier, without a URL.");
+  if (provider.freeOnly && model !== "openrouter/free" && !/^[A-Za-z0-9][A-Za-z0-9._/-]*:free$/.test(model)) throw invalid("Automatic free AI accepts only openrouter/free or a model ending in :free. Choose a separate paid profile for other models.");
   return { provider: provider.id, kind: provider.kind, name: text(input.name || provider.label, 80, "Profile name"), model, endpoint: endpointFor(provider.id, input.endpoint || "") };
 }
 function messagesFor(value) {
@@ -113,7 +119,10 @@ function buildVaultCompletion(profile, options = {}) {
         if (system) body.system = system;
       } else {
         if (key) headers.Authorization = `Bearer ${key}`;
-        body = { model: normalized.model, messages, stream: false, [provider.id === "openai" ? "max_completion_tokens" : "max_tokens"]: maxTokens };
+        body = { model: normalized.model, messages, stream: false, [["openai", "meta"].includes(provider.id) ? "max_completion_tokens" : "max_tokens"]: maxTokens };
+        // Never let a free profile inherit paid models, plugins or account
+        // fallback defaults. Every request carries provider-side zero ceilings.
+        if (provider.freeOnly) body.provider = { max_price: { prompt: 0, completion: 0, request: 0 }, allow_fallbacks: false };
       }
       try {
         if (controller.signal.aborted) throw new Error("Cancelled");
@@ -125,7 +134,7 @@ function buildVaultCompletion(profile, options = {}) {
           if (!response || !Number.isInteger(response.status) || response.status < 200 || response.status > 299) {
             Promise.resolve(response?.body?.cancel?.()).catch(() => {});
             const status = response?.status;
-            throw new Error(status === 401 || status === 403 ? "The provider rejected authentication. Replace the key in your vault." : status === 429 ? "This provider reached its usage or rate limit. Choose another saved profile or retry later." : "The provider could not complete this request.");
+            throw new Error(status === 401 || status === 403 ? "The provider rejected authentication. Replace the key in your vault." : provider.freeOnly ? "The provider could not supply a free model. No paid fallback was attempted. Check your free quota or retry later." : status === 429 ? "This provider reached its usage or rate limit. Choose another saved profile or retry later." : "The provider could not complete this request.");
           }
           const data = await readJson(response, controller.signal);
           if (!data || typeof data !== "object" || Array.isArray(data)) throw new Error("The provider returned an invalid completion.");
@@ -137,7 +146,8 @@ function buildVaultCompletion(profile, options = {}) {
             content = data.content?.filter((part) => part?.type === "text" && typeof part.text === "string").map((part) => part.text).join("\n");
             inputTokens = count(data.usage?.input_tokens); outputTokens = count(data.usage?.output_tokens);
           } else { content = data.choices?.[0]?.message?.content; inputTokens = count(data.usage?.prompt_tokens); outputTokens = count(data.usage?.completion_tokens); }
-          return { content: visible(content), model: normalized.model, usage: { inputTokens, outputTokens, totalTokens: inputTokens + outputTokens } };
+          const actualModel = typeof data.model === "string" && /^[A-Za-z0-9][A-Za-z0-9._:/-]{0,191}$/.test(data.model) ? data.model : normalized.model;
+          return { content: visible(content), model: actualModel, usage: { inputTokens, outputTokens, totalTokens: inputTokens + outputTokens } };
         })();
         return await Promise.race([operation, cancelled]);
       } catch (error) {

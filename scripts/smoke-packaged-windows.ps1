@@ -128,6 +128,13 @@ try {
     throw "Packaged managed CPU setup did not expose the expected fresh idle state: $($managedStatus | ConvertTo-Json -Compress)"
   }
 
+  # Synthetic credentials only. Exercise real packaged IPC and native OS
+  # encryption without issuing a provider completion or changing a user profile.
+  $freeVault = Invoke-CdpExpression -WebSocketUrl $page.webSocketDebuggerUrl -Expression '(async()=>{const before=await window.zeroOne.getZeroThinkVault();const expected=["openrouter-free","openrouter","meta","deepseek","mistral"];const saved=await window.zeroOne.saveZeroThinkVaultProfile({provider:"openrouter-free",name:"Synthetic packaged free router",key:"SYNTHETIC_PACKAGED_SMOKE_KEY"});const profile=saved.profiles.find(p=>p.name==="Synthetic packaged free router");const selected=await window.zeroOne.selectZeroThinkVaultProfile(profile.id);const settings=await window.zeroOne.loadSettings();const removed=await window.zeroOne.deleteZeroThinkVaultProfile(profile.id);return JSON.stringify({secure:before.secure,providers:before.providers.length,newProviders:expected.every(id=>before.providers.some(p=>p.id===id)),freeOnly:before.providers.find(p=>p.id==="openrouter-free")?.freeOnly,model:profile.model,noKeyDisclosure:!JSON.stringify(saved).includes("SYNTHETIC_PACKAGED_SMOKE_KEY"),selected:selected.activeProfileId===profile.id,activeProvider:settings.activeChatProfile?.provider,removed:removed.activeProfileId===null&&!removed.profiles.some(p=>p.id===profile.id)})})()'
+  if (-not $freeVault.secure -or [int]$freeVault.providers -ne 16 -or -not $freeVault.newProviders -or -not $freeVault.freeOnly -or $freeVault.model -ne "openrouter/free" -or -not $freeVault.noKeyDisclosure -or -not $freeVault.selected -or $freeVault.activeProvider -ne "openrouter-free" -or -not $freeVault.removed) {
+    throw "Packaged free API Vault round-trip failed: $($freeVault | ConvertTo-Json -Compress)"
+  }
+
   $pilotUi = Invoke-CdpExpression -WebSocketUrl $page.webSocketDebuggerUrl -Expression 'new Promise(resolve=>{const button=[...document.querySelectorAll("button")].find(entry=>entry.textContent?.includes("Browser Pilot"));button?.click();setTimeout(()=>{const view=document.querySelector("webview[partition=\"persist:zero-one-browser-pilot\"]");resolve(JSON.stringify({heading:document.querySelector("h1")?.textContent,task:document.body.innerText.includes("Grant this tab & start"),guard:document.body.innerText.includes("12-step hard limit"),targetId:view?.getWebContentsId?.()||0}))},2500)})'
   if ($pilotUi.heading -ne "Browser Pilot" -or -not $pilotUi.task -or -not $pilotUi.guard -or [int]$pilotUi.targetId -lt 1) {
     throw "Packaged Browser Pilot workspace did not mount its isolated target: $($pilotUi | ConvertTo-Json -Compress)"
@@ -180,7 +187,7 @@ try {
     throw "Packaged UI did not remove the clean label after incomplete evidence."
   }
 
-  Write-Output "Packaged launch, DOM, verified bundled CPU runtime/fresh setup status, isolated Browser Pilot, ZSEC identity, clean-scan, fail-closed incomplete-scan$(if ($TestLocalChat) { ', and local Assistant chat' }) smoke passed for PID $($process.Id)."
+  Write-Output "Packaged launch, DOM, verified bundled CPU runtime/fresh setup status, encrypted free API Vault round-trip, isolated Browser Pilot, ZSEC identity, clean-scan, fail-closed incomplete-scan$(if ($TestLocalChat) { ', and local Assistant chat' }) smoke passed for PID $($process.Id)."
 } finally {
   Remove-Item Env:ZERO_ONE_SMOKE_WS -ErrorAction SilentlyContinue
   Remove-Item Env:ZERO_ONE_SMOKE_EXPR -ErrorAction SilentlyContinue

@@ -74,6 +74,10 @@ const ALLOWED_ORIGINS = new Set([
   "https://chromewebstore.google.com",
   "https://platform.openai.com",
   "https://console.groq.com",
+  "https://openrouter.ai",
+  "https://dev.meta.ai",
+  "https://platform.deepseek.com",
+  "https://console.mistral.ai",
   "http://127.0.0.1:1024",
   "http://localhost:1024",
 ]);

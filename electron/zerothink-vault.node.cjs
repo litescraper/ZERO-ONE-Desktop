@@ -24,9 +24,9 @@ const input = { provider: "groq", name: "Synthetic Groq", model: "synthetic-mode
 const messages = [{ role: "system", content: "Summarize the provided fixture." }, { role: "user", content: "Explain the test." }];
 const result = (content = "Fixture answer") => new Response(JSON.stringify({ choices: [{ message: { content } }], usage: { prompt_tokens: 11, completion_tokens: 7 } }));
 
-test("vault has eleven original providers with explicit chat and service kinds", () => {
-  assert.equal(PROVIDERS.length, 11); assert.equal(new Set(PROVIDERS.map((item) => item.id)).size, 11);
-  assert.equal(PROVIDERS.filter((item) => item.kind === "chat").length, 8);
+test("vault exposes original integrations plus free routing, OpenRouter, Meta, DeepSeek and Mistral", () => {
+  assert.equal(PROVIDERS.length, 16); assert.equal(new Set(PROVIDERS.map((item) => item.id)).size, 16);
+  assert.equal(PROVIDERS.filter((item) => item.kind === "chat").length, 13);
   assert.equal(PROVIDERS.find((item) => item.id === "serper").kind, "search");
   assert.equal(PROVIDERS.find((item) => item.id === "ionq").kind, "quantum");
   for (const provider of PROVIDERS) assert.ok(Object.isFrozen(provider));
@@ -120,12 +120,13 @@ test("custom endpoints reject credential URLs, remote HTTP, metadata and unsuppo
 });
 test("compatible providers send their own key only to fixed endpoint headers", async () => {
   for (const provider of PROVIDERS.filter((entry) => entry.kind === "chat" && !["gemini", "anthropic"].includes(entry.id))) {
-    const profile = { provider: provider.id, model: "test-model", key: input.key, endpoint: provider.id === "openzero" ? "https://user.example" : provider.endpoint };
+    const model = provider.freeOnly ? "openrouter/free" : "test-model";
+    const profile = { provider: provider.id, model, key: input.key, endpoint: provider.id === "openzero" ? "https://user.example" : provider.endpoint };
     let recorded;
     const adapter = buildVaultCompletion(profile, { storeManaged: true, fetchImpl: async (url, options) => { recorded = { url, options }; return result(); } });
-    assert.deepEqual(await adapter.complete({ messages, maxTokens: 1024 }), { content: "Fixture answer", model: "test-model", usage: { inputTokens: 11, outputTokens: 7, totalTokens: 18 } });
+    assert.deepEqual(await adapter.complete({ messages, maxTokens: 1024 }), { content: "Fixture answer", model, usage: { inputTokens: 11, outputTokens: 7, totalTokens: 18 } });
     assert.equal(recorded.options.redirect, "error"); assert.equal(recorded.options.headers.Authorization, `Bearer ${input.key}`); assert.equal(recorded.options.body.includes(input.key), false); assert.equal(recorded.url, provider.id === "openzero" ? "https://user.example/v1/chat/completions" : provider.endpoint);
-    assert.equal(JSON.parse(recorded.options.body)[provider.id === "openai" ? "max_completion_tokens" : "max_tokens"], 1024);
+    assert.equal(JSON.parse(recorded.options.body)[["openai", "meta"].includes(provider.id) ? "max_completion_tokens" : "max_tokens"], 1024);
   }
 });
 test("native Gemini separates system instructions, uses header key and excludes thought parts", async () => {
@@ -134,6 +135,53 @@ test("native Gemini separates system instructions, uses header key and excludes 
   const value = await adapter.complete({ messages: [...messages, { role: "assistant", content: "Previous answer" }], maxTokens: 900 });
   assert.equal(value.content, "Visible answer"); assert.equal(value.usage.outputTokens, 9); assert.equal(recorded.url, "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent"); assert.equal(recorded.url.includes(input.key), false); assert.equal(recorded.options.headers["x-goog-api-key"], input.key);
   const body = JSON.parse(recorded.options.body); assert.equal(body.systemInstruction.parts[0].text, messages[0].content); assert.deepEqual(body.contents.map((entry) => entry.role), ["user", "model"]); assert.equal(body.generationConfig.maxOutputTokens, 900);
+});
+
+test("free-only profiles reject paid IDs, fallback aliases and endpoint substitution before transport", () => {
+  for (const model of ["openrouter/auto", "openai/gpt-4.1", "meta-llama/model", "meta-llama/model:free:nitro", "x:free/paid", "x:FREE"]) {
+    assert.throws(() => buildVaultCompletion({ provider: "openrouter-free", model, key: input.key }), /only openrouter\/free/);
+  }
+  assert.throws(() => buildVaultCompletion({ provider: "openrouter-free", key: input.key, endpoint: "https://different.example/v1/chat/completions" }), /official API endpoint/);
+  assert.equal(normalizeProfile({ provider: "openrouter-free" }).model, "openrouter/free");
+  assert.equal(normalizeProfile({ provider: "openrouter-free", model: "meta-llama/available-model:free" }).model, "meta-llama/available-model:free");
+});
+
+test("automatic free requests set hard zero prices and return the actual routed model", async () => {
+  for (const model of ["openrouter/free", "meta-llama/available-model:free"]) {
+    let recorded;
+    const adapter = buildVaultCompletion({ provider: "openrouter-free", model, key: input.key, models: ["paid-model"], plugins: [{ id: "web" }] }, { fetchImpl: async (url, options) => {
+      recorded = { url, options };
+      return new Response(JSON.stringify({ model: "meta-llama/available-model:free", choices: [{ message: { content: "Visible answer" } }] }));
+    } });
+    const answer = await adapter.complete({ messages, maxTokens: 42, model: "paid-model", provider: { max_price: { prompt: 100 } } });
+    const body = JSON.parse(recorded.options.body);
+    assert.equal(recorded.url, "https://openrouter.ai/api/v1/chat/completions");
+    assert.equal(body.model, model); assert.equal(body.max_tokens, 42);
+    assert.deepEqual(body.provider, { max_price: { prompt: 0, completion: 0, request: 0 }, allow_fallbacks: false });
+    assert.equal(body.models, undefined); assert.equal(body.plugins, undefined);
+    assert.equal(answer.model, "meta-llama/available-model:free");
+    assert.equal(recorded.options.body.includes(input.key), false);
+  }
+});
+
+test("free quota and unavailable failures stop after one request without contacting paid providers", async () => {
+  for (const status of [402, 404, 429, 500, 503]) {
+    const calls = [];
+    const adapter = buildVaultCompletion({ provider: "openrouter-free", key: input.key }, { fetchImpl: async (url) => { calls.push(url); return new Response("private error body", { status }); } });
+    await assert.rejects(adapter.complete({ messages }), /No paid fallback was attempted/);
+    assert.deepEqual(calls, ["https://openrouter.ai/api/v1/chat/completions"]);
+  }
+});
+
+test("new provider vault profiles persist and select with private keys encrypted", async (t) => {
+  const { store, filePath } = await fixture(t);
+  for (const provider of ["openrouter-free", "openrouter", "meta", "deepseek", "mistral"]) {
+    const saved = await store.saveProfile({ provider, key: input.key });
+    await store.selectProfile(saved.profiles.at(-1).id);
+    assert.equal((await store.getActiveCompletion()).provider, provider);
+    assert.equal(JSON.stringify(await store.snapshot()).includes(input.key), false);
+    assert.equal((await fs.readFile(filePath, "utf8")).includes(input.key), false);
+  }
 });
 test("native Anthropic separates system, sends correct headers and reads text only", async () => {
   let recorded;
