@@ -124,6 +124,16 @@ ZERO ONE uses established TLS and operating-system cryptography. It reads Window
 
 See [ZMath Secure](docs/ZMATH_SECURE_BOUNDARY.md), [privacy](docs/PRIVACY.md), [security architecture](docs/SECURITY_ARCHITECTURE.md) and [release evidence](store/RELEASE_EVIDENCE.md).
 
+## Serper-compatible endpoints
+
+Set `SERPER_BASE_URL` in the desktop process environment to a compatible
+HTTPS base URL, without credentials, query parameters, or fragment. The
+existing `/search` route is appended after removing trailing slashes.
+Without this setting, the Serper default is unchanged. Keep the provider's
+API key in the existing search-key setting. Redirects remain prohibited.
+
+Support any Serper.dev-compatible endpoint (like litescrape.com, serpbase.dev, serpensapi.org, and others)
+
 ## Licence
 
 Apache License 2.0. ZERO ONE names, logos and product identity are not granted for confusing or impersonating distributions; see [TRADEMARKS.md](TRADEMARKS.md).

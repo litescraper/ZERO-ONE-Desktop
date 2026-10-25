@@ -5,8 +5,10 @@ const { TextDecoder } = require("node:util");
 async function searchWeb(query, { key, fetcher = fetch, signal } = {}) {
   if (typeof query !== "string" || !query.trim() || query.length > 2000 || query.includes("\0")) throw new Error("Enter a web search up to 2,000 characters.");
   if (typeof key !== "string" || !key.trim()) throw new Error("Add your Serper search key in Settings to search the web.");
+  const endpoint = new URL(`${(process.env.SERPER_BASE_URL || "https://google.serper.dev").replace(/\/+$/, "")}/search`);
+  if (endpoint.protocol !== "https:" || endpoint.username || endpoint.password || endpoint.search || endpoint.hash) throw new Error("SERPER_BASE_URL must be an HTTPS base URL without credentials, query, or fragment.");
   const timeout = AbortSignal.timeout(30000);
-  const response = await fetcher("https://google.serper.dev/search", {
+  const response = await fetcher(endpoint.toString(), {
     method: "POST", redirect: "error", signal: signal ? AbortSignal.any([signal, timeout]) : timeout,
     headers: { "Content-Type": "application/json", "X-API-KEY": key.trim() },
     body: JSON.stringify({ q: query.trim(), num: 3 }),
